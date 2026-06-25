@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Traitement Chimio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #F7F8FA;
+    --surface: #FFFFFF;
+    --border: #E4E7EC;
+    --text: #1A1D23;
+    --muted: #6B7280;
+    --chimio: #1D4ED8;
+    --chimio-light: #EFF6FF;
+    --daily: #059669;
+    --daily-light: #ECFDF5;
+    --inject: #7C3AED;
+    --inject-light: #F5F3FF;
+    --cortisone: #D97706;
+    --cortisone-light: #FFFBEB;
+    --nausee: #DB2777;
+    --nausee-light: #FDF2F8;
+    --check: #10B981;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 80px 0;
+  }
+
+  header {
+    background: var(--chimio);
+    color: white;
+    padding: 20px 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(29,78,216,0.3);
+  }
+
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
+  .cycle-nav {
+    display: flex;
+    gap: 8px;
+    padding: 14px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 68px;
+    z-index: 99;
+  }
+  .cycle-nav::-webkit-scrollbar { display: none; }
+
+  .cycle-btn {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .cycle-btn.active {
+    background: var(--chimio);
+    border-color: var(--chimio);
+    color: white;
+  }
+
+  .day-section {
+    margin: 14px 16px 0;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0 6px;
+  }
+  .day-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .day-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    background: var(--chimio-light);
+    color: var(--chimio);
+  }
+  .day-badge.chimio-day { background: var(--chimio); color: white; }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .card.done { border-color: var(--check); background: #F0FDF4; }
+
+  .med-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    gap: 14px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .med-row:active { opacity: 0.8; }
+
+  .check-box {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    background: white;
+  }
+  .done .check-box {
+    background: var(--check);
+    border-color: var(--check);
+  }
+  .check-box svg { opacity: 0; transition: opacity 0.15s; }
+  .done .check-box svg { opacity: 1; }
+
+  .med-info { flex: 1; }
+  .med-name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .med-detail {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .done .med-name { text-decoration: line-through; color: var(--muted); }
+
+  .tag {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+  }
+  .tag-chimio { background: var(--chimio-light); color: var(--chimio); }
+  .tag-daily { background: var(--daily-light); color: var(--daily); }
+  .tag-inject { background: var(--inject-light); color: var(--inject); }
+  .tag-cortisone { background: var(--cortisone-light); color: var(--cortisone); }
+  .tag-nausee { background: var(--nausee-light); color: var(--nausee); }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    padding: 18px 16px 6px;
+  }
+
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    margin: 0 16px 16px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--check);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  .info-box {
+    margin: 8px 16px;
+    padding: 12px 14px;
+    background: var(--chimio-light);
+    border: 1.5px solid #BFDBFE;
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--chimio);
+    line-height: 1.5;
+  }
+  .info-box strong { font-weight: 700; }
+
+  .nausee-section {
+    margin: 8px 16px;
+    padding: 14px;
+    background: var(--nausee-light);
+    border: 1.5px solid #FBCFE8;
+    border-radius: var(--radius);
+  }
+  .nausee-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--nausee);
+    margin-bottom: 8px;
+  }
+
+  .reset-btn {
+    display: block;
+    margin: 20px auto 0;
+    padding: 10px 24px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .empty-day {
+    padding: 12px 16px;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧬 Suivi Chimiothérapie</h1>
+  <p id="header-date">Chargement...</p>
+</header>
+
+<div class="cycle-nav" id="cycleNav"></div>
+
+<div id="app"></div>
+
+<script>
+// === CONFIGURATION ===
+const J1_DATE = new Date('2026-06-25');
+const CYCLE_DURATION = 14; // jours
+const NUM_CYCLES = 6;
+
+// === DONNÉES DU PROTOCOLE ===
+function getMedsForDay(cycleDay) {
+  // cycleDay: 1-based (J1 = 1)
+  const meds = [];
+
+  // Quotidiens
+  meds.push({ id: 'folinoral', name: 'Folinoral 5mg', detail: '1 cp le matin', tag: 'daily', tagLabel: 'Quotidien' });
+  meds.push({ id: 'zelitrex-m', name: 'Zelitrex (valaciclovir)', detail: '1 cp le matin', tag: 'daily', tagLabel: 'Quotidien' });
+  meds.push({ id: 'zelitrex-s', name: 'Zelitrex (valaciclovir)', detail: '1 cp le soir', tag: 'daily', tagLabel: 'Quotidien' });
+  meds.push({ id: 'bdb', name: 'Bains de bouche bicarbonate', detail: 'Rinçage quotidien', tag: 'daily', tagLabel: 'Quotidien' });
+
+  // Bactrim : lundi, mercredi, vendredi
+  // On calcule le jour de la semaine de J1 (jeudi = 4) + cycleDay - 1
+  const dayOfWeek = (4 + cycleDay - 1) % 7; // 0=dim, 1=lun, 2=mar, 3=mer, 4=jeu, 5=ven, 6=sam
+  if ([1, 3, 5].includes(dayOfWeek)) {
+    meds.push({ id: 'bactrim', name: 'Bactrim forte (cotrimoxazol)', detail: '1 cp le matin', tag: 'daily', tagLabel: 'Lun/Mer/Ven' });
+  }
+
+  // J1 : chimio
+  if (cycleDay === 1) {
+    meds.push({ id: 'emend-125', name: 'Emend 125mg (aprepitant)', detail: '1 gélule 1h avant la chimio — apporter la boîte', tag: 'chimio', tagLabel: 'Chimio J1', priority: true });
+    meds.push({ id: 'sang', name: '🩸 Prise de sang', detail: 'À faire avant la chimio', tag: 'chimio', tagLabel: 'Chimio J1' });
+  }
+
+  // J2 et J3 : Emend 80mg + Prednisone
+  if (cycleDay === 2 || cycleDay === 3) {
+    meds.push({ id: 'emend-80', name: 'Emend 80mg (aprepitant)', detail: '1 gélule le matin', tag: 'chimio', tagLabel: `Post-chimio J${cycleDay}` });
+    meds.push({ id: 'prednisone', name: 'Prednisone 20mg', detail: '3 cp le matin', tag: 'cortisone', tagLabel: 'Corticoïde' });
+  }
+
+  // J4 et J5 : Prednisone seulement
+  if (cycleDay === 4 || cycleDay === 5) {
+    meds.push({ id: 'prednisone', name: 'Prednisone 20mg', detail: '3 cp le matin', tag: 'cortisone', tagLabel: 'Corticoïde' });
+  }
+
+  // J4 à J9 : Filgrastim
+  if (cycleDay >= 4 && cycleDay <= 9) {
+    meds.push({ id: 'filgrastim', name: 'Filgrastim (Zarzio)', detail: `1 injection SC — J${cycleDay} sur 6 (J4→J9)`, tag: 'inject', tagLabel: 'Injection' });
+  }
+
+  return meds;
+}
+
+// === ÉTAT ===
+const state = {
+  currentCycle: 1,
+  currentDay: 1,
+  checked: JSON.parse(localStorage.getItem('chimio_checked') || '{}')
+};
+
+function saveChecked() {
+  localStorage.setItem('chimio_checked', JSON.stringify(state.checked));
+}
+
+function getCheckKey(cycle, day, medId) {
+  return `c${cycle}_d${day}_${medId}`;
+}
+
+function toggleCheck(cycle, day, medId) {
+  const key = getCheckKey(cycle, day, medId);
+  state.checked[key] = !state.checked[key];
+  saveChecked();
+  render();
+}
+
+function isChecked(cycle, day, medId) {
+  return !!state.checked[getCheckKey(cycle, day, medId)];
+}
+
+// === DATES ===
+function getCycleStartDate(cycle) {
+  const d = new Date(J1_DATE);
+  d.setDate(d.getDate() + (cycle - 1) * CYCLE_DURATION);
+  return d;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatDateShort(d) {
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function getDayDate(cycle, day) {
+  const start = getCycleStartDate(cycle);
+  const d = new Date(start);
+  d.setDate(d.getDate() + day - 1);
+  return d;
+}
+
+function isToday(d) {
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+
+function isPast(d) {
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  return d < now;
+}
+
+// === RENDU ===
+function renderDayCard(cycle, day) {
+  const date = getDayDate(cycle, day);
+  const meds = getMedsForDay(day);
+  const total = meds.length;
+  const done = meds.filter(m => isChecked(cycle, day, m.id)).length;
+  const allDone = done === total;
+  const today = isToday(date);
+  const past = isPast(date);
+
+  let html = `<div class="day-section">`;
+  html += `<div class="day-header">`;
+  html += `<span class="day-label">${today ? '📅 ' : ''}J${day} — ${formatDate(date)}</span>`;
+  if (day === 1) html += `<span class="day-badge chimio-day">CHIMIO</span>`;
+  else if (day >= 4 && day <= 9) html += `<span class="day-badge">Injection</span>`;
+  html += `</div>`;
+
+  // Progress
+  html += `<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${total > 0 ? (done/total*100) : 0}%"></div></div>`;
+
+  // Chimio info J1
+  if (day === 1) {
+    html += `<div class="info-box">💉 <strong>Jour de perfusion.</strong> Apporter la boîte d'Emend. Prise de sang obligatoire avant.</div>`;
+  }
+
+  meds.forEach(m => {
+    const checked = isChecked(cycle, day, m.id);
+    html += `
+      <div class="card ${checked ? 'done' : ''}" onclick="toggleCheck(${cycle}, ${day}, '${m.id}')">
+        <div class="med-row">
+          <div class="check-box">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7L5.5 10.5L12 3.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="med-info">
+            <div class="med-name">${m.name}</div>
+            <div class="med-detail">${m.detail}</div>
+          </div>
+          <span class="tag tag-${m.tag}">${m.tagLabel}</span>
+        </div>
+      </div>`;
+  });
+
+  html += `</div>`;
+  return html;
+}
+
+function render() {
+  const cycle = state.currentCycle;
+  const cycleStart = getCycleStartDate(cycle);
+  const today = new Date();
+
+  // Trouver le jour actuel dans ce cycle
+  const diffMs = today - cycleStart;
+  const diffDays = Math.floor(diffMs / (1000*60*60*24)) + 1;
+  const currentCycleDay = Math.max(1, Math.min(14, diffDays));
+
+  // Header
+  document.getElementById('header-date').textContent =
+    `Cycle ${cycle} — ${formatDateShort(cycleStart)} au ${formatDateShort(getDayDate(cycle, 14))}`;
+
+  // Cycle nav
+  const nav = document.getElementById('cycleNav');
+  nav.innerHTML = Array.from({length: NUM_CYCLES}, (_, i) => {
+    const c = i + 1;
+    const d = getCycleStartDate(c);
+    return `<button class="cycle-btn ${c === cycle ? 'active' : ''}" onclick="selectCycle(${c})">Cycle ${c} — ${formatDateShort(d)}</button>`;
+  }).join('');
+
+  // Days: afficher J1 à J9 (jours avec traitements spécifiques) + les autres
+  let html = '';
+
+  // En-tête si aujourd'hui dans ce cycle
+  const isCurrentCycle = diffDays >= 1 && diffDays <= 14;
+
+  // Jours J1-J14 du cycle
+  for (let day = 1; day <= 14; day++) {
+    const meds = getMedsForDay(day);
+    const nonDaily = meds.filter(m => !['folinoral','zelitrex-m','zelitrex-s','bdb','bactrim'].includes(m.id));
+    const date = getDayDate(cycle, day);
+    const todayMark = isToday(date);
+    const past = isPast(date) && !todayMark;
+
+    // Afficher tous les jours J1-J9 (traitements spéciaux) et toujours le jour actuel
+    if (nonDaily.length > 0 || todayMark) {
+      html += renderDayCard(cycle, day);
+    }
+  }
+
+  // Section traitements quotidiens du cycle
+  html += `<div class="section-title">💊 Traitements quotidiens — tout le cycle</div>`;
+  html += `<div class="day-section">`;
+
+  const dailyMeds = [
+    { id: 'folinoral', name: 'Folinoral 5mg', detail: '1 cp — tous les matins', tag: 'daily', tagLabel: 'Quotidien' },
+    { id: 'zelitrex-m', name: 'Zelitrex matin', detail: '1 cp — tous les matins', tag: 'daily', tagLabel: 'Quotidien' },
+    { id: 'zelitrex-s', name: 'Zelitrex soir', detail: '1 cp — tous les soirs', tag: 'daily', tagLabel: 'Quotidien' },
+    { id: 'bdb', name: 'Bains de bouche bicarbonate', detail: 'Rinçage — quotidien', tag: 'daily', tagLabel: 'Quotidien' },
+    { id: 'bactrim', name: 'Bactrim forte', detail: '1 cp matin — lundi, mercredi, vendredi', tag: 'daily', tagLabel: 'Lun/Mer/Ven' },
+  ];
+
+  dailyMeds.forEach(m => {
+    const dayKey = 'daily';
+    const checked = isChecked(cycle, dayKey, m.id);
+    html += `
+      <div class="card ${checked ? 'done' : ''}" onclick="toggleCheck(${cycle}, '${dayKey}', '${m.id}')">
+        <div class="med-row">
+          <div class="check-box">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7L5.5 10.5L12 3.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="med-info">
+            <div class="med-name">${m.name}</div>
+            <div class="med-detail">${m.detail}</div>
+          </div>
+          <span class="tag tag-${m.tag}">${m.tagLabel}</span>
+        </div>
+      </div>`;
+  });
+  html += `</div>`;
+
+  // Si nausées
+  html += `
+    <div class="nausee-section">
+      <div class="nausee-title">🤢 Si nausées (au besoin)</div>
+      <div class="card" style="border-color:#FBCFE8; margin-bottom:8px;">
+        <div class="med-row">
+          <div class="med-info">
+            <div class="med-name">Primpéran 10mg (métoclopramide)</div>
+            <div class="med-detail">1 cp — maxi 3 par jour</div>
+          </div>
+          <span class="tag tag-nausee">Si besoin</span>
+        </div>
+      </div>
+      <div class="card" style="border-color:#FBCFE8;">
+        <div class="med-row">
+          <div class="med-info">
+            <div class="med-name">Ondansétron 8mg</div>
+            <div class="med-detail">1 à 2 cp par jour</div>
+          </div>
+          <span class="tag tag-nausee">Si besoin</span>
+        </div>
+      </div>
+    </div>`;
+
+  html += `<button class="reset-btn" onclick="resetCycle(${cycle})">Réinitialiser le cycle ${cycle}</button>`;
+
+  document.getElementById('app').innerHTML = html;
+
+  // Scroll vers aujourd'hui
+  if (isCurrentCycle) {
+    setTimeout(() => {
+      const sections = document.querySelectorAll('.day-section');
+      if (sections.length > 0) sections[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+}
+
+function selectCycle(c) {
+  state.currentCycle = c;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetCycle(cycle) {
+  if (!confirm(`Réinitialiser toutes les cases du cycle ${cycle} ?`)) return;
+  Object.keys(state.checked).forEach(k => {
+    if (k.startsWith(`c${cycle}_`)) delete state.checked[k];
+  });
+  saveChecked();
+  render();
+}
+
+// Détection cycle actuel au chargement
+function detectCurrentCycle() {
+  const today = new Date();
+  for (let c = NUM_CYCLES; c >= 1; c--) {
+    const start = getCycleStartDate(c);
+    if (today >= start) {
+      state.currentCycle = c;
+      break;
+    }
+  }
+}
+
+detectCurrentCycle();
+render();
+</script>
+</body>
+</html>
