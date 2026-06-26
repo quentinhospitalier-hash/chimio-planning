@@ -135,9 +135,16 @@
 </div>
 
 <script>
-const J1_DATE = new Date('2026-06-25');
-const CYCLE_DURATION = 14;
-const NUM_CYCLES = 6;
+// Dates réelles de chaque cycle J1
+const CYCLE_DATES = [
+  new Date('2026-06-25'), // Cycle 1 — jeudi
+  new Date('2026-07-10'), // Cycle 2 — vendredi (+15j)
+  new Date('2026-07-24'), // Cycle 3
+  new Date('2026-08-07'), // Cycle 4
+  new Date('2026-08-21'), // Cycle 5
+  new Date('2026-09-04'), // Cycle 6
+];
+const NUM_CYCLES = CYCLE_DATES.length;
 
 const state = {
   tab: 'traitements',
@@ -156,7 +163,11 @@ function toggleCheck(cycle, day, medId) {
 }
 function isChecked(cycle, day, medId) { return !!state.checked[getKey(cycle, day, medId)]; }
 
-function getCycleStart(c) { const d = new Date(J1_DATE); d.setDate(d.getDate()+(c-1)*CYCLE_DURATION); return d; }
+function getCycleStart(c) { return new Date(CYCLE_DATES[c-1]); }
+function getCycleDuration(c) {
+  if (c < NUM_CYCLES) return Math.round((getCycleStart(c+1) - getCycleStart(c)) / (1000*60*60*24));
+  return 14;
+}
 function getDayDate(cycle, day) { const d = new Date(getCycleStart(cycle)); d.setDate(d.getDate()+day-1); return d; }
 function isToday(d) { return d.toDateString() === new Date().toDateString(); }
 function fmtLong(d) { return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}); }
@@ -196,7 +207,7 @@ function getMeds(cycleDay) {
   return meds;
 }
 
-function isPriseSangDay(cycle, day) { return day === 14 && cycle < NUM_CYCLES; }
+function isPriseSangDay(cycle, day) { return day === getCycleDuration(cycle) && cycle < NUM_CYCLES; }
 
 function checkSVG() {
   return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -268,7 +279,7 @@ function renderDaySection(cycle, day) {
 function renderTraitements() {
   const cycle = state.currentCycle;
   document.getElementById('header-sub').textContent =
-    `Cycle ${cycle} — ${fmtShort(getCycleStart(cycle))} au ${fmtShort(getDayDate(cycle,14))}`;
+    `Cycle ${cycle} — ${fmtShort(getCycleStart(cycle))} au ${fmtShort(getDayDate(cycle,getCycleDuration(cycle)))}`;
 
   document.getElementById('cycleNav').innerHTML = Array.from({length:NUM_CYCLES},(_,i) => {
     const c = i+1;
@@ -276,7 +287,7 @@ function renderTraitements() {
   }).join('');
 
   let html = '';
-  for (let day = 1; day <= 14; day++) {
+  for (let day = 1; day <= getCycleDuration(cycle); day++) {
     html += renderDaySection(cycle, day);
   }
 
@@ -306,7 +317,7 @@ function renderTraitements() {
     const today = new Date();
     const cycleStart = getCycleStart(cycle);
     const diff = Math.floor((today - cycleStart)/(1000*60*60*24));
-    if (diff >= 0 && diff < 14 && sections[diff]) {
+    if (diff >= 0 && diff < getCycleDuration(cycle) && sections[diff]) {
       sections[diff].scrollIntoView({behavior:'smooth', block:'start'});
     }
   }, 100);
@@ -325,7 +336,7 @@ function getWeekStart(offset) {
 function getCycleAndDay(date) {
   for (let c=1; c<=NUM_CYCLES; c++) {
     const start = getCycleStart(c);
-    const end = new Date(start); end.setDate(end.getDate()+CYCLE_DURATION-1);
+    const end = new Date(start); end.setDate(end.getDate()+getCycleDuration(c)-1);
     if (date>=start && date<=end) return {cycle:c, day:Math.floor((date-start)/(1000*60*60*24))+1};
   }
   return null;
@@ -361,8 +372,9 @@ function renderCalendar() {
 
     if (sangC) {
       const prevCycle = sangC-1;
-      const checked = isChecked(prevCycle,14,'sang');
-      html += `<button class="cal-pill cal-pill-sang ${checked?'done-pill':''}" onclick="toggleCheck(${prevCycle},14,'sang'); renderCalendar()">🩸 Labo</button>`;
+      const lastDay = getCycleDuration(prevCycle);
+      const checked = isChecked(prevCycle,lastDay,'sang');
+      html += `<button class="cal-pill cal-pill-sang ${checked?'done-pill':''}" onclick="toggleCheck(${prevCycle},${lastDay},'sang'); renderCalendar()">🩸 Labo</button>`;
     }
 
     if (info) {
